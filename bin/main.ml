@@ -630,6 +630,75 @@ let () =
   Printf.printf "Wrote world_map.dot in %.3f s.\n" dt_dot;
   Printf.printf "(neato rendering of 10k+ nodes is slow; consider 'sfdp -Tpng' instead.)\n";
 
+  (* ---------------------------------------------------------------------
+     Diffusion fields: heat rises from the Abyss, light shines from z=0.
+
+     Heat uses Dirichlet with *both* boundaries specified:
+       - hot sources (Abyss + a couple Lower Dungeon lava vents)
+       - cold clamp (every surface room pinned at 0)
+     This turns it into a well-posed harmonic-interpolation problem, so
+     the gradient spans the full depth of the world instead of collapsing
+     to a tiny hot zone near the sole source.
+     --------------------------------------------------------------------- *)
+  Printf.printf "\n--- Diffusing scalar fields ---\n";
+  let surface_seeds ?(v = 1.0) () =
+    let acc = ref [] in
+    for id = 0 to total_nodes - 1 do
+      if (get_pos id).z = 0 then acc := (id, v) :: !acc
+    done;
+    !acc
+  in
+  let heat_seeds =
+    (* Hot sources distributed through the Abyss (fully hot volume) and
+       scattered as lava channels through the Lower Dungeon.  Seeding every
+       N-th room keeps the dense mazes from interpolating down to zero
+       between sparse sources. *)
+    let hot = ref [] in
+    (* Abyss: 1 seed every 60 rooms at ~0.95, plus the entrance at 1.0. *)
+    hot := (abyss_off, 1.0) :: !hot;
+    let i = ref (abyss_off + 60) in
+    while !i < abyss_off + abyss_size do
+      hot := (!i, 0.95) :: !hot; i := !i + 60
+    done;
+    (* Lower Dungeon: 1 lava vent every 150 rooms at 0.55..0.70. *)
+    let j = ref d2_off in
+    let intensity = ref 0.70 in
+    while !j < d2_off + dungeon_l_sz do
+      hot := (!j, !intensity) :: !hot;
+      j := !j + 150;
+      (* Slightly randomize vent strength so the gradient isn't uniformly warm. *)
+      intensity := 0.55 +. (0.15 *. float_of_int ((!j / 150) mod 2))
+    done;
+    (* Cold clamp: every surface room held at 0 to pull the gradient upward. *)
+    !hot @ surface_seeds ~v:0.0 ()
+  in
+  let field_specs : Diffusion.field_spec list = [
+    { name = "heat";
+      seeds = heat_seeds;
+      mode = Diffusion.Dirichlet;
+      alpha = 0.98;           (* unused for Dirichlet; kept for consistency *)
+      iterations = 100 };
+    { name = "light";
+      seeds = surface_seeds ~v:1.0 ();
+      mode = Diffusion.Dirichlet;
+      alpha = 0.0;            (* unused for Dirichlet *)
+      iterations = 60 };
+  ] in
+  let field_results =
+    List.map (fun (spec : Diffusion.field_spec) ->
+      let (values, raw_min, raw_max), dt =
+        time_it (fun () -> Diffusion.diffuse g spec) in
+      Printf.printf "  %-8s iters=%d mode=%s  raw=[%.4f, %.4f]  %.3f s\n"
+        spec.name spec.iterations
+        (match spec.mode with
+         | Diffusion.Pulse -> "pulse"
+         | Diffusion.Anchored -> "anchored"
+         | Diffusion.Dirichlet -> "dirichlet")
+        raw_min raw_max dt;
+      (spec.name, values)
+    ) field_specs
+  in
+
   let regions_json =
     let buf = Buffer.create 512 in
     Buffer.add_char buf '[';
@@ -647,12 +716,32 @@ let () =
     Printf.sprintf {|"id":%d,"x":%d,"y":%d,"z":%d,"region":%d|}
       i p.x p.y p.z (region_of_id i)
   in
+  let fields_json =
+    let buf = Buffer.create (List.length field_results * total_nodes * 8) in
+    Buffer.add_char buf '[';
+    List.iteri (fun fi (name, values) ->
+      if fi > 0 then Buffer.add_char buf ',';
+      Buffer.add_string buf {|{"name":"|};
+      Buffer.add_string buf name;
+      Buffer.add_string buf {|","values":[|};
+      Array.iteri (fun i v ->
+        if i > 0 then Buffer.add_char buf ',';
+        (* 4 significant figures keeps JSON compact without losing
+           visible precision in the ramp (256 colors max). *)
+        Printf.bprintf buf "%.4f" v
+      ) values;
+      Buffer.add_string buf "]}"
+    ) field_results;
+    Buffer.add_char buf ']';
+    Buffer.contents buf
+  in
   Printf.printf "\nExporting world JSON for web viewer...\n";
   let (_, dt_json) = time_it (fun () ->
     Graph.export_to_json g
       ~regions_json
       ~node_json
       ~edge_kind
+      ~fields_json
       "web/public/world.json") in
   Printf.printf "Wrote web/public/world.json in %.3f s.\n" dt_json;
 

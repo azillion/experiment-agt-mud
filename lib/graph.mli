@@ -6,6 +6,10 @@ val adjacency_matrix : t -> Owl.Mat.mat
 val vertex_count : t -> int
 val edge_count : t -> int
 
+(** O(1) neighbor lookup. Returned list is the raw internal storage
+    (undirected adjacency, LIFO insertion order). *)
+val neighbors : t -> int -> int list
+
 val export_to_dot :
   t ->
   ?graph_name:string ->
@@ -19,5 +23,6 @@ val export_to_json :
   ?regions_json:string ->
   ?node_json:(int -> string) ->
   ?edge_kind:(int -> int -> string) ->
+  ?fields_json:string ->
   string ->
   unit

@@ -1,12 +1,20 @@
 type t = {
   n : int;
   edges : (int * int) list ref;
+  (* adj.(i) holds i's neighbors as a list (prepend on add_edge, LIFO).
+     Kept in sync with [edges] so [adjacency_matrix] / [export_to_dot] /
+     [export_to_json] need no changes. *)
+  adj : int list array;
 }
 
-let create n = { n; edges = ref [] }
+let create n = { n; edges = ref []; adj = Array.make n [] }
 
 let add_edge g i j =
-  g.edges := (i, j) :: !(g.edges)
+  g.edges := (i, j) :: !(g.edges);
+  g.adj.(i) <- j :: g.adj.(i);
+  g.adj.(j) <- i :: g.adj.(j)
+
+let neighbors g i = g.adj.(i)
 
 let adjacency_matrix g =
   let m = Owl.Mat.zeros g.n g.n in
@@ -56,11 +64,13 @@ let export_to_dot
   close_out oc
 
 (* Caller is responsible for producing valid JSON fragments in
-   [regions_json] / [node_json]; strings are emitted verbatim. *)
+   [regions_json] / [node_json] / [fields_json]; strings are emitted
+   verbatim (no escaping). *)
 let export_to_json g
     ?(regions_json = "[]")
     ?(node_json = fun _ -> "")
     ?(edge_kind = fun _ _ -> "grid")
+    ?(fields_json = "[]")
     filename =
   let buf = Buffer.create (g.n * 60 + 1024) in
   Buffer.add_string buf {|{"regions":|};
@@ -87,7 +97,9 @@ let export_to_json g
     end
   ) !(g.edges);
 
-  Buffer.add_string buf "]}";
+  Buffer.add_string buf {|],"fields":|};
+  Buffer.add_string buf fields_json;
+  Buffer.add_string buf "}";
   let oc = open_out filename in
   Buffer.output_buffer oc buf;
   close_out oc

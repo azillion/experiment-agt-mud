@@ -23,19 +23,38 @@ export interface WorldEdge {
   kind: EdgeKind
 }
 
+export interface RawField {
+  name: string
+  /** Pre-normalized to [0, 1], indexed by node id. */
+  values: number[]
+}
+
+export interface Field {
+  name: string
+  /** Same data as RawField.values but typed for faster repeated reads. */
+  values: Float32Array
+}
+
 export interface RawWorld {
   regions: Region[]
   nodes: WorldNode[]
   edges: WorldEdge[]
+  fields?: RawField[]
 }
 
-export interface WorldData extends RawWorld {
+export interface WorldData {
+  regions: Region[]
+  nodes: WorldNode[]
+  edges: WorldEdge[]
+  fields: Field[]
   /** O(1) node lookup by id */
   nodeById: Map<number, WorldNode>
   /** Undirected adjacency list: nodeId → neighbor ids */
   exitsByNode: Map<number, number[]>
   /** regionId → z-layer value (all nodes of a region share the same z) */
   regionZLayer: Map<number, number>
+  /** field name → Float32Array of values; same as fields[i].values */
+  fieldByName: Map<string, Float32Array>
 }
 
 // ── Loader ───────────────────────────────────────────────────────────────────
@@ -65,7 +84,24 @@ export async function loadWorld(): Promise<WorldData> {
     }
   }
 
-  return { ...raw, nodeById, exitsByNode, regionZLayer }
+  // Convert field arrays to Float32Array for cache-friendly repeated reads
+  // (per-instance re-coloring iterates all 10k rooms on every mode switch).
+  const fields: Field[] = (raw.fields ?? []).map(f => ({
+    name: f.name,
+    values: new Float32Array(f.values),
+  }))
+  const fieldByName = new Map(fields.map(f => [f.name, f.values]))
+
+  return {
+    regions: raw.regions,
+    nodes: raw.nodes,
+    edges: raw.edges,
+    fields,
+    nodeById,
+    exitsByNode,
+    regionZLayer,
+    fieldByName,
+  }
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
