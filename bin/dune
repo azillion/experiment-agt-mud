@@ -1,0 +1,4 @@
+(executable
+ (name main)
+ (libraries agt_mud_lib owl)
+ (link_flags -cclib "-L/opt/homebrew/opt/libomp/lib"))
