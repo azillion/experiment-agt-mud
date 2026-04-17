@@ -351,6 +351,12 @@ let edge_attr i j =
     else "color=\"purple\", penwidth=3.0"
   else "color=\"#888888\", penwidth=0.3"
 
+let edge_kind u v =
+  if List.exists (pair_eq (u, v)) !sutures then
+    let pu = get_pos u and pv = get_pos v in
+    if pu.z <> pv.z then "shaft" else "suture"
+  else "grid"
+
 (* =========================================================================
    6. AI Payload Generator
    ========================================================================= *)
@@ -623,6 +629,32 @@ let () =
       "world_map.dot") in
   Printf.printf "Wrote world_map.dot in %.3f s.\n" dt_dot;
   Printf.printf "(neato rendering of 10k+ nodes is slow; consider 'sfdp -Tpng' instead.)\n";
+
+  let regions_json =
+    let buf = Buffer.create 512 in
+    Buffer.add_char buf '[';
+    Array.iteri (fun i r ->
+      if i > 0 then Buffer.add_char buf ',';
+      Printf.bprintf buf
+        {|{"id":%d,"name":"%s","color":"%s","tag":"%s"}|}
+        i r.name r.color r.tag
+    ) regions;
+    Buffer.add_char buf ']';
+    Buffer.contents buf
+  in
+  let node_json i =
+    let p = get_pos i in
+    Printf.sprintf {|"id":%d,"x":%d,"y":%d,"z":%d,"region":%d|}
+      i p.x p.y p.z (region_of_id i)
+  in
+  Printf.printf "\nExporting world JSON for web viewer...\n";
+  let (_, dt_json) = time_it (fun () ->
+    Graph.export_to_json g
+      ~regions_json
+      ~node_json
+      ~edge_kind
+      "web/public/world.json") in
+  Printf.printf "Wrote web/public/world.json in %.3f s.\n" dt_json;
 
   Printf.printf "\nBooting interface... You materialize at (0,0,0), NW corner of the Capital.\n";
   game_loop 0

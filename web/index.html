@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AGT-MUD World Viewer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { overflow: hidden; background: #1a1a2e; font-family: monospace; }
+    canvas { display: block; }
+
+    #overlay {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20, 20, 40, 0.92);
+      color: #ccc;
+      font-size: 15px;
+      z-index: 100;
+    }
+    #overlay.hidden { display: none; }
+    #overlay-msg { text-align: center; line-height: 1.8; }
+    #overlay-msg .error { color: #f08080; font-size: 13px; margin-top: 8px; white-space: pre-wrap; }
+
+    #legend {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      background: rgba(10, 10, 25, 0.82);
+      color: #ddd;
+      padding: 12px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      line-height: 1.7;
+      min-width: 170px;
+      user-select: none;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    #legend h3 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #888;
+      margin-bottom: 4px;
+    }
+    #legend .sep { border-top: 1px solid #333; margin: 7px 0; }
+    #legend label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      padding: 1px 0;
+    }
+    #legend label:hover { color: #fff; }
+    #legend .swatch {
+      width: 11px;
+      height: 11px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    #legend input[type=checkbox] { accent-color: #7c9cbf; cursor: pointer; }
+
+    #hud {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      background: rgba(10, 10, 25, 0.85);
+      color: #ddd;
+      padding: 12px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+      min-width: 210px;
+      max-width: 300px;
+      display: none;
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255,255,255,0.07);
+    }
+    #hud .h-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #777; }
+    #hud .h-name  { font-size: 15px; font-weight: bold; margin: 2px 0 4px; }
+    #hud .h-coords { color: #aaa; font-size: 12px; }
+    #hud .h-exits { margin-top: 8px; font-size: 12px; }
+    #hud .h-exits-title { color: #777; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }
+    #hud .exit-chip {
+      display: inline-block;
+      margin: 2px 4px 0 0;
+      padding: 1px 6px;
+      background: rgba(240,192,64,0.15);
+      border: 1px solid rgba(240,192,64,0.35);
+      border-radius: 3px;
+      color: #f0c040;
+      font-size: 11px;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      color: #555;
+      font-size: 11px;
+      font-family: monospace;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay">
+    <div id="overlay-msg">
+      Loading world data&hellip;
+      <div class="error" id="overlay-error"></div>
+    </div>
+  </div>
+  <div id="legend"></div>
+  <div id="hud"></div>
+  <div id="hint">scroll to zoom &nbsp;·&nbsp; drag to orbit &nbsp;·&nbsp; click room to inspect</div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

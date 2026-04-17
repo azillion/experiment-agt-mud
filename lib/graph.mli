@@ -13,3 +13,11 @@ val export_to_dot :
   ?edge_attr:(int -> int -> string) ->
   string ->
   unit
+
+val export_to_json :
+  t ->
+  ?regions_json:string ->
+  ?node_json:(int -> string) ->
+  ?edge_kind:(int -> int -> string) ->
+  string ->
+  unit

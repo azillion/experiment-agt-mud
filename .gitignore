@@ -1,3 +1,6 @@
 _build/*
 *.dot
 *.png
+web/node_modules/
+web/dist/
+web/public/world.json

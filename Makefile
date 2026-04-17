@@ -1,4 +1,4 @@
-.PHONY: build clean run test deps fix-openblas setup map map-fast
+.PHONY: build clean run test deps fix-openblas setup map map-fast export-web web-install web-dev web-build
 
 OPENBLAS_PC := /opt/homebrew/opt/openblas/lib/pkgconfig/openblas.pc
 
@@ -34,8 +34,23 @@ setup: fix-openblas deps build
 
 # Render world map from Graphviz dot file (respects pos= hints; slow on 10k+ nodes)
 map:
-	neato -Tpng world_map.dot -o world_map.png
+	neato -Tsvg world_map.dot -o world_map.svg
 
 # Fast renderer for huge worlds (scalable force-directed; ignores pos=)
 map-fast:
-	sfdp -Tpng -Goverlap=prism world_map.dot -o world_map.png
+	sfdp -Tsvg -Goverlap=prism world_map.dot -o world_map.svg
+
+# Generate web/public/world.json for the 3D viewer
+export-web: build
+	mkdir -p web/public
+	dune exec bin/main.exe < /dev/null
+
+# Web viewer helpers
+web-install:
+	cd web && npm install
+
+web-dev:
+	cd web && npm run dev
+
+web-build:
+	cd web && npm run build
